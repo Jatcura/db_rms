@@ -1,116 +1,92 @@
--- ----------------------------
--- Tables
--- ----------------------------
-
--- Create restauracountriesnts table
-CREATE TABLE IF NOT EXISTS countries (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    name VARCHAR(100) NOT NULL UNIQUE,
-    code CHAR(2) UNIQUE
+-- Автори
+CREATE TABLE Authors (
+    AuthorID INT PRIMARY KEY AUTO_INCREMENT,
+    AuthorName VARCHAR(255) NOT NULL UNIQUE,
+    BirthYear INT,
+    DeathYear INT,
+    Biography TEXT
 );
 
--- Create cities table
-CREATE TABLE IF NOT EXISTS cities (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    name VARCHAR(100) NOT NULL,
-    country_id INTEGER NOT NULL,
-    CONSTRAINT fk_country
-        FOREIGN KEY(country_id)
-        REFERENCES countries(id)
-        ON DELETE RESTRICT,
-    UNIQUE (name, country_id)
+-- Категорії книг (ієрархія)
+CREATE TABLE Categories (
+    CategoryID INT PRIMARY KEY AUTO_INCREMENT,
+    CategoryName VARCHAR(100) NOT NULL UNIQUE,
+    ParentCategoryID INT NULL,
+    Description TEXT NULL,
+    FOREIGN KEY (ParentCategoryID)
+        REFERENCES Categories(CategoryID)
+        ON DELETE SET NULL
 );
 
--- Create persons table
-CREATE TABLE IF NOT EXISTS persons (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    personal_phone_number VARCHAR(50),
-    personal_email_address VARCHAR(255) UNIQUE,
-    date_of_birth DATE
+-- Книги
+CREATE TABLE Books (
+    BookID INT PRIMARY KEY AUTO_INCREMENT,
+    CategoryID INT,  
+    Title VARCHAR(255) NOT NULL,
+    ISBN VARCHAR(20) UNIQUE NOT NULL,
+    PublicationYear INT,
+    Description TEXT,
+    Language VARCHAR(50),
+    FOREIGN KEY (CategoryID) REFERENCES Categories(CategoryID) ON DELETE SET NULL
 );
 
--- Create staff_roles table
-CREATE TABLE IF NOT EXISTS staff_roles (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    name VARCHAR(100) NOT NULL UNIQUE
+-- Звязок книжок з аторами
+CREATE TABLE BookAuthors (
+    BookID INT,
+    AuthorID INT,
+    PRIMARY KEY (BookID, AuthorID),
+    FOREIGN KEY (BookID) REFERENCES Books(BookID) ON DELETE CASCADE,
+    FOREIGN KEY (AuthorID) REFERENCES Authors(AuthorID) ON DELETE CASCADE
 );
 
--- Create employments table
-CREATE TABLE IF NOT EXISTS employments (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    person_id INTEGER NOT NULL,
-    restaurant_id INTEGER NOT NULL,
-    role_id INTEGER NOT NULL,
-    hire_date DATE NOT NULL,
-    termination_date DATE,
-    CONSTRAINT fk_employment_person
-        FOREIGN KEY(person_id)
-        REFERENCES persons(id)
-        ON DELETE RESTRICT,
-    CONSTRAINT fk_employment_restaurant
-        FOREIGN KEY(restaurant_id)
-        REFERENCES restaurants(id)
-        ON DELETE RESTRICT,
-    CONSTRAINT fk_employment_role
-        FOREIGN KEY(role_id)
-        REFERENCES staff_roles(id)
-        ON DELETE RESTRICT
+-- Користувачі бібліотеки
+CREATE TABLE Members (
+    MemberID INT PRIMARY KEY AUTO_INCREMENT,
+    MemberName VARCHAR(255) NOT NULL,
+    Email VARCHAR(255) UNIQUE,
+    PhoneNumber BIGINT
 );
 
--- Create restaurants table
-CREATE TABLE IF NOT EXISTS restaurants (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    name VARCHAR(255) NOT NULL,
-    address VARCHAR(255) NOT NULL,
-    city_id INTEGER NOT NULL,
-    phone_number VARCHAR(50),
-    email_address VARCHAR(255) UNIQUE,
-    operating_hours VARCHAR(255),
-    latitude DECIMAL(9,6),
-    longitude DECIMAL(10,6)с
-    CONSTRAINT fk_city
-        FOREIGN KEY(city_id)
-        REFERENCES cities(id)
-        ON DELETE RESTRICT
+-- Примірники книжок
+CREATE TABLE BookCopies (
+    CopyID INT PRIMARY KEY AUTO_INCREMENT,
+    BookID INT NOT NULL,
+    CopyStatus ENUM('available', 'borrowed', 'reserved', 'damaged', 'lost', 'maintenance') NOT NULL DEFAULT 'available',
+    FOREIGN KEY (BookID) REFERENCES Books(BookID) ON DELETE CASCADE
 );
 
--- Create menu_categories table
-CREATE TABLE IF NOT EXISTS menu_categories (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    name VARCHAR(100) NOT NULL UNIQUE
+-- Отримані книжки
+CREATE TABLE Borrowings (
+    BorrowingID INT PRIMARY KEY AUTO_INCREMENT,
+    CopyID INT NOT NULL, 
+    MemberID INT NOT NULL,
+    BorrowDate DATE NOT NULL,
+    DueDate DATE NOT NULL,
+    ReturnDate DATE NULL,
+    FOREIGN KEY (CopyID) REFERENCES BookCopies(CopyID) ON DELETE RESTRICT,
+    FOREIGN KEY (MemberID) REFERENCES Members(MemberID) ON DELETE RESTRICT
 );
 
--- Create menu_items table
-CREATE TABLE IF NOT EXISTS menu_items (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    category_id INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    image_url VARCHAR(255),
-    is_vegetarian BOOLEAN DEFAULT FALSE,
-    CONSTRAINT fk_menu_item_category
-        FOREIGN KEY(category_id)
-        REFERENCES menu_categories(id)
-        ON DELETE RESTRICT
+-- Резерування книжок
+CREATE TABLE Reservations (
+    ReservationID INT PRIMARY KEY AUTO_INCREMENT,
+    BookID INT NOT NULL,
+    MemberID INT NOT NULL,
+    ReservationDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+    ReservationStatus ENUM('pending', 'available', 'fulfilled', 'cancelled', 'expired') NOT NULL DEFAULT 'pending',
+    Notes TEXT NULL, 
+    FOREIGN KEY (BookID) REFERENCES Books(BookID) ON DELETE CASCADE, 
+    FOREIGN KEY (MemberID) REFERENCES Members(MemberID) ON DELETE CASCADE 
 );
 
--- Create restaurant_menu_items table
-CREATE TABLE IF NOT EXISTS restaurant_menu_items (
-    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    restaurant_id INTEGER NOT NULL,
-    menu_item_id INTEGER NOT NULL,
-    price DECIMAL(10, 2) NOT NULL,      
-    is_available BOOLEAN DEFAULT TRUE,  
-
-    CONSTRAINT fk_restaurant_menu_restaurant
-        FOREIGN KEY(restaurant_id)
-        REFERENCES restaurants(id)
-        ON DELETE CASCADE, 
-    CONSTRAINT fk_restaurant_menu_item
-        FOREIGN KEY(menu_item_id)
-        REFERENCES menu_items(id)
-        ON DELETE CASCADE, 
-    UNIQUE (restaurant_id, menu_item_id)
+-- Відгуки про книжки
+CREATE TABLE Reviews (
+    ReviewID INT PRIMARY KEY AUTO_INCREMENT,
+    BookID INT NOT NULL,
+    MemberID INT NOT NULL,
+    Rating INT NOT NULL CHECK (Rating >= 1 AND Rating <= 5),
+    ReviewText TEXT NULL, 
+    ReviewDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (BookID) REFERENCES Books(BookID) ON DELETE CASCADE, 
+    FOREIGN KEY (MemberID) REFERENCES Members(MemberID) ON DELETE CASCADE 
 );
